@@ -195,9 +195,10 @@ while i < len(distOptions):
                                             os.path.join(log_Directory, nameCourtComp + '.txt'), 'a')
                                         log_file.write('record completed, ' + str(x) + ' records found' + '\n')
                                         print('record completed, ' + str(x) + ' records found')
+                                        return
 
                                 record()
-                                break
+                                return
 
             courtComp = 1
             courtComplexDownload = Select(driver.find_element_by_css_selector('#court_complex_code'))
