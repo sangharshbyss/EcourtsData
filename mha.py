@@ -149,63 +149,65 @@ while i < len(distOptions):
                                 imgtotxt()
                                 continue
                             else:
-                                log_file = open(
-                                    os.path.join(log_Directory, nameCourtComp + '.txt'), 'a')
-                                log_file.write('Record not Found' + '\n')
-                                return print('record not found')
+                                if incorrect == norecord:
+                                    log_file = open(
+                                        os.path.join(log_Directory, nameCourtComp + '.txt'), 'a')
+                                    log_file.write('Record not Found' + '\n')
+                                    return print('record not found')
 
                         except:
+                            pass
+
+                        def record():
                             log_file = open(
                                 os.path.join(log_Directory, nameCourtComp + '.txt'), 'a')
                             log_file.write('Record Found' + '\n')
                             print('record fun started')
-
-                            def record():
-                                wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'a.someclass')))
-                                listAllView = driver.find_elements_by_css_selector(
-                                    'a.someclass')
-                                # make new dirctory by name of Court Complex
-                                distDir2 = os.path.join(
-                                    main_Directory, distName, nameCourtComp)
-                                if not os.path.exists(distDir2):
-                                    os.makedirs(distDir2)
-                                x = 0
-                                for view in listAllView:
-                                    try:
-                                        view.click()
-                                        wait.until(EC.presence_of_element_located((By.ID, 'back_top')))
-                                        openFile = open(
-                                            os.path.join(distDir2, "file_" + str(x) + ".html"), "w")
-                                        openFile.write(driver.page_source)
-                                        openFile.close()
-                                        back = driver.find_element_by_id('back_top')
-                                        back.click()
-                                        x += 1
-                                    except (TimeoutException, ElementNotInteractableException):
-                                        wait.until(
-                                            EC.presence_of_element_located((
-                                                By.CSS_SELECTOR,
-                                                '#captcha_container_2 > div:nth-child(1) > div:nth-child('
-                                                '1) > span:nth-child(3) > a:nth-child(7) > img:nth-child(1)')))
-                                        driver.find_element_by_css_selector('input.button:nth-child(2)').click()
-                                        driver.close()
-                                        log_file = open(
-                                            os.path.join(log_Directory, nameCourtComp + '.txt'), 'a')
-                                        log_file.write(
-                                            'While Downloading record for '
-                                            + nameCourtComp + ' error occured, retrying now...' + '\n')
-                                        return print(
-                                            'While Downloading record for '
-                                            + nameCourtComp + ' error occured, retrying now...')
-                                log_file = open(
-                                    os.path.join(log_Directory, nameCourtComp + '.txt'), 'a')
-                                log_file.write('record completed, ' + str(x) + ' records found' + '\n')
-                                print('record completed, ' + str(x) + ' records found')
-                                return
-
-                            record()
-                            print('record function finished')
+                            wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, 'a.someclass')))
+                            listAllView = driver.find_elements_by_css_selector(
+                                'a.someclass')
+                            # make new dirctory by name of Court Complex
+                            distDir2 = os.path.join(
+                                main_Directory, distName, nameCourtComp)
+                            if not os.path.exists(distDir2):
+                                os.makedirs(distDir2)
+                            x = 0
+                            for view in listAllView:
+                                try:
+                                    view.click()
+                                    wait.until(EC.presence_of_element_located((By.ID, 'back_top')))
+                                    openFile = open(
+                                        os.path.join(distDir2, "file_" + str(x) + ".html"), "w")
+                                    openFile.write(driver.page_source)
+                                    openFile.close()
+                                    back = driver.find_element_by_id('back_top')
+                                    back.click()
+                                    x += 1
+                                except (TimeoutException, ElementNotInteractableException):
+                                    wait.until(
+                                        EC.presence_of_element_located((
+                                            By.CSS_SELECTOR,
+                                            '#captcha_container_2 > div:nth-child(1) > div:nth-child('
+                                            '1) > span:nth-child(3) > a:nth-child(7) > img:nth-child(1)')))
+                                    driver.find_element_by_css_selector('input.button:nth-child(2)').click()
+                                    driver.close()
+                                    log_file = open(
+                                        os.path.join(log_Directory, nameCourtComp + '.txt'), 'a')
+                                    log_file.write(
+                                        'While Downloading record for '
+                                        + nameCourtComp + ' error occured, retrying now...' + '\n')
+                                    return print(
+                                        'While Downloading record for '
+                                        + nameCourtComp + ' error occured, retrying now...')
+                            log_file = open(
+                                os.path.join(log_Directory, nameCourtComp + '.txt'), 'a')
+                            log_file.write('record completed, ' + str(x) + ' records found' + '\n')
+                            print('record completed, ' + str(x) + ' records found')
                             return
+
+                        record()
+                        print('record function finished')
+                        return
 
             courtComp = 1
             courtComplexDownload = Select(
