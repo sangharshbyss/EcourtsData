@@ -35,7 +35,7 @@ districtListDropdown = Select(driver.find_element_by_css_selector("#sateist"))
 distOptions = districtListDropdown.options
 
 #iterate over each district
-i = 1
+i = 2
 while i < len(distOptions):
     wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '#sateist')))
     newDistDropDown = Select(driver.find_element_by_css_selector("#sateist"))
@@ -196,12 +196,12 @@ while i < len(distOptions):
                                         log_file.write('record completed, ' + str(x) + ' records found' + '\n')
                                         print('record completed, ' + str(x) + ' records found')
                                         return
-
                                 record()
                                 return
 
             courtComp = 1
-            courtComplexDownload = Select(driver.find_element_by_css_selector('#court_complex_code'))
+            courtComplexDownload = Select(
+                driver.find_element_by_css_selector('#court_complex_code'))
             courtComplexDownloadList = courtComplexDownload.options
             courtComplexLen = len(courtComplexDownloadList) - 1
             while courtComp < courtComplexLen:
@@ -213,20 +213,20 @@ while i < len(distOptions):
                 acts = Select(driver.find_element_by_css_selector('#actcode'))
                 actsOpt = acts.options
                 act = 0
-                while act < 20:
-                    if len(actsOpt) < 1:
+                while len(actsOpt) < 1:
+                    if act < 20:
                         time.sleep(1)
                         act += 1
                     else:
-                        acts.select_by_value('33')
+                        log_file = open(
+                            os.path.join(log_Directory, nameCourtComp + '.txt'), 'a')
+                        log_file.write('No PoA' + '\n')
+                        print('no PoA')
+                        courtComp += 1
                         break
                 else:
-                    log_file = open(
-                        os.path.join(log_Directory, nameCourtComp + '.txt'), 'a')
-                    log_file.write('No PoA' + '\n')
-                    print('no PoA')
-                    courtComp += 1
-                    break
+                    acts.select_by_value('33')
+
                 imgtotxt()
                 proceed()
                 courtComp +=1
