@@ -197,6 +197,7 @@ while i < len(distOptions):
                                         print('record completed, ' + str(x) + ' records found')
 
                                 record()
+                                break
 
             courtComp = 1
             courtComplexDownload = Select(driver.find_element_by_css_selector('#court_complex_code'))
