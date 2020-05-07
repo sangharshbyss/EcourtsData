@@ -238,6 +238,7 @@ while i < len(distOptions):
                     log_file.write('No PoA' + '\n')
                     print('no PoA')
                     courtComp += 1
+                    continue
 
                 imgtotxt()
                 proceed()
