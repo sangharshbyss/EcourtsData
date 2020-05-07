@@ -35,7 +35,7 @@ districtListDropdown = Select(driver.find_element_by_css_selector("#sateist"))
 distOptions = districtListDropdown.options
 
 # iterate over each district
-i = 20
+i = 1
 while i < len(distOptions):
     try:
         wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '#sateist')))
@@ -194,6 +194,8 @@ while i < len(distOptions):
                                     log_file.write(
                                         'While Downloading record for '
                                         + nameCourtComp + ' error occured, retrying now...' + '\n')
+                                    nonlocal courtComp
+                            courtComp -= 1
                                     return print(
                                         'While Downloading record for '
                                         + nameCourtComp + ' error occured, retrying now...')
@@ -201,8 +203,6 @@ while i < len(distOptions):
                                 os.path.join(log_Directory, nameCourtComp + '.txt'), 'a')
                             log_file.write('record completed, ' + str(x) + ' records found' + '\n')
                             print('record completed, ' + str(x) + ' records found')
-                            nonlocal courtComp
-                            courtComp -= 1
                             return
 
                         record()
