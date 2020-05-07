@@ -35,10 +35,13 @@ districtListDropdown = Select(driver.find_element_by_css_selector("#sateist"))
 distOptions = districtListDropdown.options
 
 # iterate over each district
-i = 1
+i = 20
 while i < len(distOptions):
-    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '#sateist')))
-    newDistDropDown = Select(driver.find_element_by_css_selector("#sateist"))
+    try:
+        wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '#sateist')))
+        newDistDropDown = Select(driver.find_element_by_css_selector("#sateist"))
+    except:
+        continue
     newDistOptions = newDistDropDown.options
     distName = newDistOptions[i].text
     print(distName)
@@ -184,12 +187,7 @@ while i < len(distOptions):
                                     back.click()
                                     x += 1
                                 except (TimeoutException, ElementNotInteractableException):
-                                    wait.until(
-                                        EC.presence_of_element_located((
-                                            By.CSS_SELECTOR,
-                                            '#captcha_container_2 > div:nth-child(1) > div:nth-child('
-                                            '1) > span:nth-child(3) > a:nth-child(7) > img:nth-child(1)')))
-                                    driver.find_element_by_css_selector('input.button:nth-child(2)').click()
+
                                     driver.close()
                                     log_file = open(
                                         os.path.join(log_Directory, nameCourtComp + '.txt'), 'a')
@@ -203,12 +201,12 @@ while i < len(distOptions):
                                 os.path.join(log_Directory, nameCourtComp + '.txt'), 'a')
                             log_file.write('record completed, ' + str(x) + ' records found' + '\n')
                             print('record completed, ' + str(x) + ' records found')
+                            nonlocal courtComp
+                            courtComp -= 1
                             return
 
                         record()
-                        print('record function finished')
                         return
-
             courtComp = 1
             courtComplexDownload = Select(
                 driver.find_element_by_css_selector('#court_complex_code'))
@@ -223,19 +221,23 @@ while i < len(distOptions):
                 acts = Select(driver.find_element_by_css_selector('#actcode'))
                 actsOpt = acts.options
                 act = 0
-                while len(actsOpt) < 1:
-                    if act < 20:
+                while len(actsOpt) < 2:
+                    if act < 10:
+
                         time.sleep(1)
                         act += 1
                     else:
-                        log_file = open(
-                            os.path.join(log_Directory, nameCourtComp + '.txt'), 'a')
-                        log_file.write('No PoA' + '\n')
-                        print('no PoA')
-                        courtComp += 1
-                        break
-                else:
+                        #if there is no list to populate break out of this loop & go to next complex
+                        raise Exception()
+                try:
                     acts.select_by_value('33')
+                except NoSuchElementException:
+                    print('PoA not applicable')
+                    log_file = open(
+                        os.path.join(log_Directory, nameCourtComp + '.txt'), 'a')
+                    log_file.write('No PoA' + '\n')
+                    print('no PoA')
+                    courtComp += 1
 
                 imgtotxt()
                 proceed()
