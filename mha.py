@@ -188,14 +188,14 @@ while i < len(distOptions):
                                     x += 1
                                 except (TimeoutException, ElementNotInteractableException):
 
-                                    driver.close()
+                                    driver.refresh()
                                     log_file = open(
                                         os.path.join(log_Directory, nameCourtComp + '.txt'), 'a')
                                     log_file.write(
                                         'While Downloading record for '
                                         + nameCourtComp + ' error occured, retrying now...' + '\n')
                                     nonlocal courtComp
-                            courtComp -= 1
+                                    courtComp -= 1
                                     return print(
                                         'While Downloading record for '
                                         + nameCourtComp + ' error occured, retrying now...')
@@ -236,7 +236,6 @@ while i < len(distOptions):
                     log_file = open(
                         os.path.join(log_Directory, nameCourtComp + '.txt'), 'a')
                     log_file.write('No PoA' + '\n')
-                    print('no PoA')
                     courtComp += 1
                     continue
 
