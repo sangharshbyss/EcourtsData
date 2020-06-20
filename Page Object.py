@@ -12,8 +12,16 @@ from PIL import Image
 from io import BytesIO
 import cv2
 from pytesseract import pytesseract
-from selenium.common.exceptions import NoSuchElementException, TimeoutException, ElementNotInteractableException
+from selenium.common.exceptions import NoSuchElementException, TimeoutException
+import logging
 
+# set logging
+logging.basicConfig(filename='/home/sangharshmanuski/EcourtsData/logging_files'
+                             '/ecourts_log_file.log',
+                    filemode='a',
+                    level=logging.INFO,
+                    format='%(asctime)s %(message)s',
+                    datefmt='%d/%m/%Y %I:%M:%S %p')
 # constants
 url = r'https://districts.ecourts.gov.in/'
 
@@ -36,16 +44,17 @@ def get_states(driver) -> List[str]:
     """
     try:
         # wait for combo box to be ready
-        print("Waiting for combo box (States/UT)...")
+
         wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, combo_identifier)))
-        print("Combo box should be ready, continue")
+
     except TimeoutException:
-        print("Timed out/failed to load page")
+        logging.exception('list of states failed to load')
 
     states_combo = Select(driver.find_element_by_css_selector(combo_identifier))
 
     # return list of non-empty values from combo box
     state_list = [o.get_attribute("value") for o in states_combo.options if o.get_attribute("value") != '']
+    logging.info('state list ready')
     return state_list
 
 
@@ -60,21 +69,29 @@ def get_districts():
         # wait for page to open and banner of district court to appear.
         wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '.region')))
     except TimeoutException:
-        print("Timed out/failed to load page")
+        logging.exception('districts not loaded')
 
     states_combo = Select(driver.find_element_by_css_selector(combo_identifier))
     # return list of non-empty values from combo box
-    districts_names = [o.get_attribute("text") for o in states_combo.options if o.get_attribute("value") != '']
-    district_values = [o.get_attribute("value") for o in states_combo.options if o.get_attribute("value") != '']
+    districts_names = [o.get_attribute(
+        "text") for o in states_combo.options if o.get_attribute("value") != '']
+    district_values = [o.get_attribute(
+        "value") for o in states_combo.options if o.get_attribute("value") != '']
+    for each_district, number in enumerate(districts_names, start=1):
+        logging.info(f'all the districts are:')
+        logging.info(f'[{number}]: {each_district}')
+    logging.info(f'district list ready. total districts: {len(districts_names)}.')
+
     return districts_names, district_values
 
 
 def single_district(dist_number, some_districts_names=None, some_districts_values=None):
-    "returns singnle district name and value of the district"
+    # returns single district name and value of the district
     name_dist = some_districts_names[dist_number]
     value_dist = some_districts_values[dist_number]
     district_option = Select(driver.find_element_by_css_selector(combo_identifier))
     district_option.select_by_value(value_dist)
+    logging.info(f'\n \n \n new district: {name_dist} selected. It\'s number: {dist_number}')
     return name_dist, value_dist
 
 
@@ -84,8 +101,10 @@ def match_heading(some_district_name=None):
     some_district_name_lower = some_district_name.lower()
     while heading_dist_lower != some_district_name_lower:
         time.sleep(1)
-        print(f'not matched {heading_dist.text.lower} and {some_district_name.lower}')
+        logging.info('waiting')
     else:
+        logging.info(f'district: {some_district_name} '
+                     f'page loaded fully. Selecting case status by act')
         return True
 
 
@@ -96,6 +115,7 @@ def case_status_by_act():
         (By.CSS_SELECTOR,
          'div.panel:nth-child(3) > ul:nth-child(1) > li:nth-child(6) > a:nth-child(1)')))
     select_case_status_by_act.click()
+    logging.info('Case status by act selected. new tab will open')
     return select_case_status_by_act
 
 
@@ -107,7 +127,7 @@ def court_complex_list():
                            for o in complex_combo.options if o.get_attribute("value") != '0']
     court_complex_values = [o.get_attribute("value")
                             for o in complex_combo.options if o.get_attribute("value") != '0']
-    print(court_complex_values, court_complex_names)
+    logging.info(f'number of court complexes available: {len(court_complex_names)}')
     return court_complex_names, court_complex_values
 
 
@@ -117,7 +137,7 @@ def single_court_complex(complex_number, value_complex_list=None, name_complex_l
     value_complex = value_complex_list[complex_number]
     name_complex = name_complex_list[complex_number]
     complex_combo.select_by_value(value_complex)
-    print(name_complex)
+    logging.info(f'\n {name_complex} selected. checking for records')
     return name_complex
 
 
@@ -132,11 +152,12 @@ def select_act(some_name_complex=None):
         if second < 10:
             time.sleep(1)
             second += 1
+            logging.info('waiting for act list to be ready...')
         else:
-            print(f"sorry no act in {some_name_complex}")
+            logging.info(f"sorry no act in {some_name_complex}")
             return False
     else:
-        print('got it')
+        logging.info(f'PoA selected')
         acts.select_by_value('33')
         return True
 
@@ -146,10 +167,10 @@ def accept_alert(tab=None):
         waitShort.until(EC.alert_is_present())
         driver.switch_to.alert.accept()
         driver.switch_to.window(tab)
-        print('alert accepted')
+        logging.info('alert accepted')
         return True
     except (NoSuchElementException, TimeoutException):
-        print('no alert present')
+        logging.exception('no alert present')
         return False
 
 
@@ -157,10 +178,13 @@ def wait_msg():
     try:
         please_wait = driver.find_element_by_css_selector('#waitmsg')
         if please_wait.is_displayed():
+            logging.info('please wait')
             return True
         else:
+
             return False
     except NoSuchElementException:
+        logging.exception('no wait msg was present')
         return False
 
 
@@ -175,7 +199,8 @@ def wait_msg_wait():
             continue
         else:
             break
-    return print('result of captcha crack ready')
+    logging.info('captcha result ready')
+    return
 
 
 def invalid_captcha():
@@ -184,18 +209,34 @@ def invalid_captcha():
         incorrect = driver.find_element_by_css_selector('#errSpan > p:nth-child(1)').text
         in_valid_captcha = "Invalid Captcha"
         if incorrect == in_valid_captcha:
-            print(f'{incorrect}, try again')
+            logging.info(f'{incorrect}, try again')
             return True
         else:
-            print('captcha cracked correctly')
+            logging.info('captcha cracked correctly')
             return False
     except NoSuchElementException:
-        print('captcha cracked')
+        logging.info('captcha cracked, but may be no records found...checking')
+        return False
+
+
+def no_record_found(courtcomplex=None):
+    # checks if no record found message is displayed
+
+    try:
+        no_record = driver.find_element_by_css_selector('#errSpan > p:nth-child(1)').text
+        no_record_available = "Record Not Found"
+        if no_record == no_record_available:
+            logging.info(f'no record @ {courtcomplex} please go to next court complex')
+            return True
+
+    except NoSuchElementException:
+        logging.info('captcha cracked, record available, download now')
         return False
 
 
 def captcha_to_text():
-    "captures the captcha image"
+    # captures the captcha image
+    logging.info('working on captcha now...')
     elem = driver.find_element_by_id("captcha_image")
     loc = elem.location
     size = elem.size
@@ -217,6 +258,7 @@ def captcha_to_text():
     captcha_text = pytesseract.image_to_string(
         Image.open(
             '/home/sangharshmanuski/Documents/e_courts/editC/oneDisNoLoop.png'))
+    logging.info(f'text of the captcha: {captcha_text}')
     return captcha_text
 
 
@@ -226,47 +268,35 @@ def submit_form():
     captcha.send_keys(captcha_to_text())
     driver.find_element_by_css_selector('input.button:nth-child(1)').click()
     time.sleep(1)
-
-
-def no_record_found(courtcomplex=None):
-    # checks if no record found message is displayed
-
-    try:
-        no_record = driver.find_element_by_css_selector('#errSpan > p:nth-child(1)').text
-        no_record_available = "Record Not Found"
-        if no_record == no_record_available:
-            print(f'no record @ {courtcomplex} please go to next court complex')
-            return True
-        else:
-            print('tell me what else is it?')
-            return False
-    except NoSuchElementException:
-        print('captcha cracked, record available, download')
-        return False
-
+    logging.info('form submitted')
 
 
 def download(some_district=None, some_complex=None):
+    logging.info(f'okay, downloading record for {some_complex} in {some_district}')
     WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.CSS_SELECTOR, 'a.someclass')))
     list_all_view = driver.find_elements_by_css_selector(
         'a.someclass')
+    logging.info(f'total number of records: {len(list_all_view)}')
     record = 0
     for view in list_all_view:
-        print('downloading')
+        logging.info(f'downloading {list_all_view.index(view)} record')
         try:
             view.click()
             wait.until(EC.presence_of_element_located((By.ID, 'back_top')))
             open_file = open(
-                os.path.join(main_Directory, some_district, some_complex, "file_" + str(record) + ".html"), "w")
+                os.path.join(main_Directory, some_district,
+                             some_complex, "file_" + str(record) + ".html"), "w")
             open_file.write(driver.page_source)
             open_file.close()
             back = driver.find_element_by_id('back_top')
             back.click()
             record += 1
         except NoSuchElementException:
+            logging.exception(f'the task of downloading was unfinished for '
+                              f'{some_complex} in {some_district}'
+                              f'come back to it latter')
             raise
-    print(f'{this_name_complex} downloaded')
-
+    logging.info(f'{some_complex} in {some_district} downloaded')
 
 
 def dist_dir(some_district_name=None):
@@ -274,6 +304,10 @@ def dist_dir(some_district_name=None):
         main_Directory, some_district_name)  # create new
     if not os.path.exists(district_directory):  # if not directory exists, create one
         os.mkdir(district_directory)
+        logging.info(f'directory for {some_district_name} created')
+    else:
+        logging.info(f'directory for {some_district_name} was already there')
+        pass
     return district_directory
 
 
@@ -283,6 +317,12 @@ def court_complex_dir(district_directory=None, name_complex=None):
         main_Directory, district_directory, name_complex)  # create new
     if not os.path.exists(court_complex_directory):  # if not directory exists, create one
         os.mkdir(court_complex_directory)
+        logging.info(f'directory for {name_complex} in '
+                     f'{district_directory} created')
+    else:
+        logging.info(f'directory for {name_complex} in '
+                     f'{district_directory} was already there')
+        pass
     return court_complex_directory
 
 
@@ -290,7 +330,7 @@ def court_complex_dir(district_directory=None, name_complex=None):
 
 # load the main page
 driver.get(url)
-
+print('working in progress. see the log file')
 # Step 1 - select a state from list of states
 # fixed selection from list. As only Maharashtra is covered now.
 
@@ -299,15 +339,15 @@ state = state_option.select_by_value('maharashtra')
 list_districts_names, list_districts_values = get_districts()
 # Step 2 - district object created
 for x in list_districts_names:
-    print(f'iteration: {list_districts_names.index(x)}')
+    logging.info(f'district loop started. iteration: '
+                 f'{list_districts_names.index(x)}')
     # step 2.1- select single district
     this_district, this_value = single_district(list_districts_names.index(x),
                                                 list_districts_names,
                                                 list_districts_values)
-    print(f'{this_district} is selected')
-    # step 2.2 - create directory by district name, if not existing
+
     dist_dir(this_district)
-    # step 2.3 - check if page has fully loaded otherwise wait
+
     match_heading(this_district)
     # step 2.3.a create variable for window handle
     current = driver.window_handles[0]
@@ -323,11 +363,11 @@ for x in list_districts_names:
     driver.switch_to.window(newWindow)
     # 2.4.b new object from Formfilling(districtCourt)
     this_name_complex_list, this_value_complex_list = court_complex_list()
-    print(enumerate(this_name_complex_list))
-    # 2.4.c loop over all complexes
-    '''
-    for i in this_name_complex_list:
 
+    # 2.4.c loop over all complexes
+
+    for i in this_name_complex_list:
+        logging.info(f'\n iterating each complex. currently at no.: {this_name_complex_list.index(i)}')
         # 2.4.1.1 select court complex
         this_name_complex = single_court_complex(this_name_complex_list.index(i),
                                                  this_value_complex_list,
@@ -336,7 +376,7 @@ for x in list_districts_names:
         # If the acts are not available go to the next court complex
         # or if option for particular act is not present go to next court complex
         if not select_act(this_name_complex):
-            print('act not found, retrying...')
+
             driver.find_element_by_css_selector('input.button:nth-child(2)').click()
             single_court_complex(this_name_complex_list.index(i),
                                  this_value_complex_list,
@@ -345,23 +385,21 @@ for x in list_districts_names:
                 continue
         while True:
             submit_form()
-            print('captcha entered')
+
             if accept_alert(newWindow):
-                print('... again captcha')
                 driver.find_element_by_css_selector('#captcha_container_2 '
                                                     '> div:nth-child(1) > div:nth-child(1) '
                                                     '> span:nth-child(3) > a:nth-child(7) '
                                                     '> img:nth-child(1)').click()
                 time.sleep(1)
-                print('refresh captcha')
+                logging.info('captcha image refreshed')
                 continue
-            else:
-                print('go on')
+
             if not invalid_captcha():
-                print('captcha cracked going out of the loop')
+
                 break
             else:
-                print('incorrect')
+
                 continue
         # 2.4.5 if no record found go the next court complex
         if no_record_found(this_name_complex):
@@ -372,19 +410,22 @@ for x in list_districts_names:
             # 2.4.7 download all the records
             try:
                 download(this_district, this_name_complex)
-            except (ElementNotInteractableException, TimeoutException):
+            except TimeoutException:
+
                 driver.refresh()
-                print(f'exception was present. Recheck {this_name_complex} again.')
-                print(f'skipping {this_name_complex} for now')
-             continue
-    '''
+                logging.exception(f'exception was present. Recheck {this_name_complex} again.')
+                logging.info(f'skipping {this_name_complex} for now')
+                continue
+
+    logging.info(f'all court complexes in {this_district} completed')
     print(f'all court complexes in {this_district} completed')
     driver.close()
+    driver.switch_to.window(current)
 
-
-    # 2.4.8 close the form page
+logging.info('all districts in maharashtra completed')
+# 2.4.8 close the form page
 driver.close()
 
 # 2.5 all districts completed print statement and go to state-option page.
-print(f"all districts in {state} completed")
+
 driver.back()
