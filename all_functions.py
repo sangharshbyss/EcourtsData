@@ -12,7 +12,7 @@ from PIL import Image
 from io import BytesIO
 import cv2
 from pytesseract import pytesseract
-from selenium.common.exceptions import NoSuchElementException, TimeoutException
+from selenium.common.exceptions import NoSuchElementException, TimeoutException, ElementNotInteractableException
 import logging
 
 # set logging
