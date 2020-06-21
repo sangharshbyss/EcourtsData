@@ -38,7 +38,7 @@ waitShort = WebDriverWait(driver, 3)
 
 # FUNCTIONS
 
-def get_states(driver) -> List[str]:
+def get_states(driver):
     """Get list of States/UT from combo box
     Return a list of strings
     """
@@ -77,9 +77,11 @@ def get_districts():
         "text") for o in states_combo.options if o.get_attribute("value") != '']
     district_values = [o.get_attribute(
         "value") for o in states_combo.options if o.get_attribute("value") != '']
-    for each_district, number in enumerate(districts_names, start=1):
-        logging.info(f'all the districts are:')
-        logging.info(f'[{number}]: {each_district}')
+    list_of_all_districts_in_state = []
+    for number, each_district in enumerate(districts_names, start=1):
+        list_of_all_districts_in_state.append(
+            f'all the districts are: [{number}]: {each_district}')
+        logging.info(list_of_all_districts_in_state)
     logging.info(f'district list ready. total districts: {len(districts_names)}.')
 
     return districts_names, district_values
@@ -96,11 +98,13 @@ def single_district(dist_number, some_districts_names=None, some_districts_value
 
 
 def match_heading(some_district_name=None):
+    WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.CSS_SELECTOR, '.heading')))
     heading_dist = driver.find_element_by_css_selector('.heading')
     heading_dist_lower = heading_dist.text.lower()
     some_district_name_lower = some_district_name.lower()
     while heading_dist_lower != some_district_name_lower:
         time.sleep(1)
+
         logging.info('waiting')
     else:
         logging.info(f'district: {some_district_name} '
