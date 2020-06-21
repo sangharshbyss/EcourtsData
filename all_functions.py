@@ -27,7 +27,7 @@ logging.basicConfig(filename='/home/sangharshmanuski/EcourtsData/logging_files'
 url = r'https://districts.ecourts.gov.in/'
 
 options = FirefoxOptions()
-# options.add_argument("--headless")
+options.add_argument("--headless")
 options.add_argument("--private-window")
 driver = webdriver.Firefox(options=options)
 # base dir path for downloading files:
@@ -171,7 +171,6 @@ def accept_alert(tab=None):
         logging.info('alert accepted')
         return True
     except (NoSuchElementException, TimeoutException):
-        logging.exception('no alert present')
         return False
 
 
@@ -298,9 +297,10 @@ def download(some_district=None, some_complex=None):
         except WebDriverException:
             logging.exception(WebDriverException)
             logging.info(f'skip {this_name_complex} for now')
-            time.sleep(120)
-            logging.info('wait for 3 mins over')
-            driver.refresh()
+            time.sleep(60)
+            logging.info('wait for 2 mins over')
+            driver.back()
+            return False
 
 
     logging.info(f'{some_complex} in {some_district} downloaded')
@@ -422,21 +422,10 @@ for x in list_districts_names:
             # 2.4.6 make new directory
             court_complex_dir(this_district, this_name_complex)
             # 2.4.7 download all the records
-            try:
-                download(this_district, this_name_complex)
-            except (TimeoutException, NoSuchElementException, ElementNotInteractableException):
-
-                driver.refresh()
-                logging.exception(f'exception was present. Recheck {this_name_complex} again.')
-                logging.info(f'skipping {this_name_complex} for now')
+            if not download(this_district, this_name_complex):
                 continue
-            except WebDriverException:
-                logging.exception(f'{WebDriverException} was present. Recheck {this_name_complex} again.')
-                logging.info('so will wait for 3 minutes')
-                time.sleep(120)
-                driver.refresh()
-                logging.info(f'trying again and skipping {this_name_complex} for now')
-                continue
+            else:
+                pass
 
     logging.info(f'all court complexes in {this_district} completed')
     print(f'all court complexes in {this_district} completed')
