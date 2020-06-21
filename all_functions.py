@@ -280,22 +280,17 @@ def download(some_district=None, some_complex=None):
     record = 0
     for view in list_all_view:
         logging.info(f'downloading {list_all_view.index(view)} record')
-        try:
-            view.click()
-            wait.until(EC.presence_of_element_located((By.ID, 'back_top')))
-            open_file = open(
-                os.path.join(main_Directory, some_district,
-                             some_complex, "file_" + str(record) + ".html"), "w")
-            open_file.write(driver.page_source)
-            open_file.close()
-            back = driver.find_element_by_id('back_top')
-            back.click()
-            record += 1
-        except NoSuchElementException:
-            logging.exception(f'the task of downloading was unfinished for '
-                              f'{some_complex} in {some_district}'
-                              f'come back to it latter')
-            raise
+        view.click()
+        wait.until(EC.presence_of_element_located((By.ID, 'back_top')))
+        open_file = open(
+            os.path.join(main_Directory, some_district,
+                         some_complex, "file_" + str(record) + ".html"), "w")
+        open_file.write(driver.page_source)
+        open_file.close()
+        back = driver.find_element_by_id('back_top')
+        back.click()
+        record += 1
+
     logging.info(f'{some_complex} in {some_district} downloaded')
 
 
@@ -410,7 +405,7 @@ for x in list_districts_names:
             # 2.4.7 download all the records
             try:
                 download(this_district, this_name_complex)
-            except TimeoutException:
+            except (TimeoutException, NoSuchElementException, ElementNotInteractableException):
 
                 driver.refresh()
                 logging.exception(f'exception was present. Recheck {this_name_complex} again.')
