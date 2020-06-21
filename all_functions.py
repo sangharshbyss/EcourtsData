@@ -12,7 +12,8 @@ from PIL import Image
 from io import BytesIO
 import cv2
 from pytesseract import pytesseract
-from selenium.common.exceptions import NoSuchElementException, TimeoutException, ElementNotInteractableException
+from selenium.common.exceptions import NoSuchElementException, TimeoutException, \
+    ElementNotInteractableException, WebDriverException
 import logging
 
 # set logging
@@ -77,11 +78,7 @@ def get_districts():
         "text") for o in states_combo.options if o.get_attribute("value") != '']
     district_values = [o.get_attribute(
         "value") for o in states_combo.options if o.get_attribute("value") != '']
-    list_of_all_districts_in_state = []
-    for number, each_district in enumerate(districts_names, start=1):
-        list_of_all_districts_in_state.append(
-            f'all the districts are: [{number}]: {each_district}')
-        logging.info(list_of_all_districts_in_state)
+    logging.info(f'{districts_names}')
     logging.info(f'district list ready. total districts: {len(districts_names)}.')
 
     return districts_names, district_values
@@ -283,17 +280,28 @@ def download(some_district=None, some_complex=None):
     logging.info(f'total number of records: {len(list_all_view)}')
     record = 0
     for view in list_all_view:
-        logging.info(f'downloading {list_all_view.index(view)} record')
-        view.click()
-        wait.until(EC.presence_of_element_located((By.ID, 'back_top')))
-        open_file = open(
-            os.path.join(main_Directory, some_district,
-                         some_complex, "file_" + str(record) + ".html"), "w")
-        open_file.write(driver.page_source)
-        open_file.close()
-        back = driver.find_element_by_id('back_top')
-        back.click()
-        record += 1
+        try:
+            logging.info(f'downloading {list_all_view.index(view)} record')
+            view.click()
+            wait.until(EC.presence_of_element_located((By.ID, 'back_top')))
+            open_file = open(
+                os.path.join(main_Directory, some_district,
+                             some_complex, "file_" + str(record) + ".html"), "w")
+            open_file.write(driver.page_source)
+            open_file.close()
+            back = driver.find_element_by_id('back_top')
+            back.click()
+            record += 1
+        except TimeoutException:
+            logging.exception(f'{TimeoutException}')
+            logging.info(f'skip {this_name_complex} for now')
+        except WebDriverException:
+            logging.exception(WebDriverException)
+            logging.info(f'skip {this_name_complex} for now')
+            time.sleep(120)
+            logging.info('wait for 3 mins over')
+            driver.refresh()
+
 
     logging.info(f'{some_complex} in {some_district} downloaded')
 
@@ -383,7 +391,14 @@ for x in list_districts_names:
             if not select_act(this_name_complex):
                 continue
         while True:
-            submit_form()
+            try:
+                submit_form()
+            except WebDriverException:
+                logging.exception(f'{WebDriverException} was present, waiting for 3 mins')
+                time.sleep(120)
+                driver.refresh()
+                logging.info(f'refreshed, skipped {this_name_complex}')
+                continue
 
             if accept_alert(newWindow):
                 driver.find_element_by_css_selector('#captcha_container_2 '
@@ -414,6 +429,13 @@ for x in list_districts_names:
                 driver.refresh()
                 logging.exception(f'exception was present. Recheck {this_name_complex} again.')
                 logging.info(f'skipping {this_name_complex} for now')
+                continue
+            except WebDriverException:
+                logging.exception(f'{WebDriverException} was present. Recheck {this_name_complex} again.')
+                logging.info('so will wait for 3 minutes')
+                time.sleep(120)
+                driver.refresh()
+                logging.info(f'trying again and skipping {this_name_complex} for now')
                 continue
 
     logging.info(f'all court complexes in {this_district} completed')
