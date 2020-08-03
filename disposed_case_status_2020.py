@@ -1,7 +1,9 @@
-"""file only targets one district in one state
-scrapy can be used to go to multipule states and multiple districts
-after grabing (with "response.join") url it can be passed to selenium as
-rest of the pages are js loaded."""
+"""all well. from disposed_case_status_2020.
+as there was mistake in acts sections.
+re-downloading records except downloading orders"""
+
+from bs4 import BeautifulSoup as BS
+import csv
 import base64
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
@@ -14,13 +16,13 @@ from PIL import Image
 from io import BytesIO
 import cv2
 from pytesseract import pytesseract
-from selenium.common.exceptions import NoSuchElementException, TimeoutException, \
-    WebDriverException
+from selenium.common.exceptions import NoSuchElementException, \
+    TimeoutException, WebDriverException
 import check_the_act
 from ecourts_logging import logger
 import directories_files
-from file_append import append_file, append_dict_as_row, open_dictionary_with_headers
-
+from file_append import append_file, append_dict_as_row, write_mode
+from case_details import ParseCase, History
 
 profile = webdriver.FirefoxProfile()
 orders_directory = r'/home/sangharshmanuski/EcourtsData/disposed_off/pune3/orders'
@@ -47,20 +49,20 @@ driver = webdriver.Firefox(firefox_profile=profile)
 # constants
 URL = r'https://districts.ecourts.gov.in/pune'
 
-main_Directory = r'/home/sangharshmanuski/EcourtsData/disposed_off/pune3'
+main_Directory = r'/home/sangharshmanuski/Documents/data_ecourts/new_pune/pune1'
 summary_directory = os.path.join(main_Directory, 'summary')
 combo_identifier = '#sateist'
 wait = WebDriverWait(driver, 180)
 waitShort = WebDriverWait(driver, 3)
 
+ipc = 'indian penal code'
+poa = 'prevention of atrocities'
+pcso = 'protection of children from sexual'
+pcr = 'protection of civil rights'
+cpr = 'code of criminal procedure'
+
 
 # FUNCTIONS
-
-def wait_for_page_load(element, element_css):
-    # 1. wait for stalness of element 2. wait until visibility of that element with CSS)
-    wait.until(EC.staleness_of(element))
-    wait.until(EC.visibility_of_element_located((By.CSS_SELECTOR, element_css)))
-
 
 def by_case_status():
     wait.until(
@@ -245,82 +247,111 @@ def case_identifier():
     return number_year_text
 
 
+def open_dictionary_with_headers(out_file, headers):
+    with open(out_file, 'w') as f:
+        writer = csv.DictWriter(f, fieldnames=headers)
+        writer.writeheader()
+        f.close()
+
+
 def view(some_complex=None):
     logger.info(f'{some_complex}')
     WebDriverWait(driver, 20).until(EC.presence_of_element_located((
         By.CSS_SELECTOR, 'a.someclass')))
-    list_all_view = driver.find_elements_by_css_selector(
-        'a.someclass')
-    number_of_records = len(list_all_view)
-    for single in range(number_of_records):
+    list_all_view = driver.find_elements_by_css_selector('a.someclass')
+    list_all_view_text = driver.find_elements_by_css_selector('.col-xs-2')
+    for click_here in list_all_view[1:1000:]:
+
         try:
-            list_all_view[single].click()
-            wait.until(EC.presence_of_element_located((By.ID, 'back_top')))
-            time.sleep(1)
-            registration = driver.find_element_by_xpath(
-                '/html/body/form/div[6]/div[2]/div[1]/span[4]/label').text
-            registration = str(registration).replace("/", "_")
-            registration_date = driver.find_element_by_xpath(
-                '/html/body/form/div[6]/div[2]/div[1]/span[4]/span[2]/label[2]').text
-            page = driver.page_source
-            case_details_file = directories_files.district_record_details(
-                complex_directory, "pune_cases")
-            case_details, headers = open_dictionary_with_headers(page, case_details_file)
-            append_dict_as_row(case_details_file, case_details, headers)
-            if check_the_act.act_check(driver):
-                page = driver.page_source
-                poa_case_details = directories_files.district_records_poa(
-                    complex_directory, "pune")
-                case_details, headers = open_dictionary_with_headers(
-                    page, poa_case_details)
-                append_dict_as_row(poa_case_details, case_details, headers)
-                download_order(registration)
+            click_here.click()
+            case_number_processing = list_all_view_text[
+                list_all_view.index(click_here)].text
+            logger.info(case_number_processing)
+        except (WebDriverException,
+                TimeoutException,
+                NoSuchElementException):
+            failed_case = click_here.text
+            message_fail = f'{failed_case} exception'
+            append_file(catch_errors, message_fail)
+            continue
+        remaining = len(list_all_view) - list_all_view.index(click_here)
+        logger.info(f"{remaining}")
+        message_processing = f'{case_number_processing}'
+        append_file(complex_summary, message_processing)
+        logger.info(message_processing)
+        wait.until(EC.presence_of_element_located((By.ID, 'back_top')))
+        time.sleep(2)
+        registration = driver.find_element_by_xpath(
+            '/html/body/form/div[6]/div[2]/div[1]/span[4]/label').text
+        registration = str(registration).replace("/", "_")
+        # create directory for history
+        directory_history = directories_files.history_direcotry(complex_directory)
+
+
+        if check_the_act.act_check(driver):
+            poa_page = driver.page_source
+            poa_soup = BS(poa_page, 'lxml')
+            poa_case_details = ParseCase(poa_soup, base_dictionary)
+            append_dict_as_row(poa_case_details_file,
+                               poa_case_details.set_dictionary(),
+                               fields)
+            download_order(registration)
+            if driver.find_element_by_css_selector(".history_table").is_displayed():
+                history_file = os.path.join(directory_history,
+                                             f'history_{registration}.csv')
+                write_mode(history_file)
+                history_record = History(poa_soup, base_dictionary, history_file)
+                history_record.case_history()
                 back = driver.find_element_by_css_selector(
                     "#back_top > center:nth-child(1) > a:nth-child(1)")
                 back.click()
+                logger.info(f'order downloaded {registration}')
+                time.sleep(2)
                 continue
             else:
+                history_file = os.path.join(directory_history,
+                                            f'history_{registration}.csv')
+                write_mode(history_file, "order downloaded {registration}. No history displayed")
+            back = driver.find_element_by_css_selector(
+                "#back_top > center:nth-child(1) > a:nth-child(1)")
+            back.click()
+
+        else:
+            page = driver.page_source
+            base_soup = BS(page, 'lxml')
+            case_details_record = ParseCase(base_soup, base_dictionary)
+            append_dict_as_row(
+                case_details_file, case_details_record.set_dictionary(), fields)
+            # a seperate file for recording history of case.
+            history_file = os.path.join(directory_history,
+                                        f'history_{registration}.csv')
+            if driver.find_element_by_css_selector(".history_table").is_displayed():
+                write_mode(history_file)
+                history_record = History(base_soup, base_dictionary, history_file)
+                history_record.case_history()
                 back = driver.find_element_by_css_selector(
                     "#back_top > center:nth-child(1) > a:nth-child(1)")
                 back.click()
-                logger.info(f'{some_complex} downloaded')
-
-
-        except TimeoutException:
-            error_message = f':time_out exception: {single}: {this_name_complex} '
-            time.sleep(3)
-            if back := \
-                    driver.find_element_by_css_selector(
-                        "#back_top > center:nth-child(1) "
-                        "> a:nth-child(1)").is_displayed():
+                logger.info(f'{this_name_complex} downloaded but no PoA')
+                time.sleep(2)
+                continue
+            else:
+                write_mode(history_file, "No history displayed")
+                back = driver.find_element_by_css_selector(
+                    "#back_top > center:nth-child(1) > a:nth-child(1)")
                 back.click()
-            continue
-        except WebDriverException:
-            logger.info(f'{WebDriverException}. \n breaking out with False')
-            time.sleep(5)
-            error_message = f':time_out exception: {single}: {this_name_complex} '
-            if back := \
-                    driver.find_element_by_css_selector(
-                        "#back_top > center:nth-child(1) "
-                        "> a:nth-child(1)").is_displayed():
-                back.click()
-            continue
-
 
 def download_order(number="no_number"):
     time.sleep(3)
     try:
         if driver.find_element_by_css_selector('.blinking').is_displayed():
             logger.info('order not upladed yet')
-            back = driver.find_element_by_css_selector(
-                "#back_top > center:nth-child(1) > a:nth-child(1)")
-            back.click()
-
             return
     except NoSuchElementException:
         logger.info('order available')
 
-    orders = driver.find_elements_by_xpath('//table[@class="order_table"]//td/a')
+    orders = driver.find_elements_by_xpath(
+        '//table[@class="order_table"]//td/a')
     if orders is not None:
         for order in range(len(orders)):
             orders[order].click()
@@ -330,14 +361,13 @@ def download_order(number="no_number"):
             append_file(order_summary, message_orders_downloaded)
             logger.info(f"downloading...{order}")
         logger.info(f'number of orders downloaded: {len(orders)}')
+
         return
     else:
         no_order_table = f'no order table \n ' \
                          f'{number}_2020'
         append_file(order_summary, no_order_table)
-        back = driver.find_element_by_css_selector(
-            "#back_top > center:nth-child(1) > a:nth-child(1)")
-        back.click()
+
         logger.info('entire order table was missing and no blinking text')
         return
 
@@ -362,17 +392,16 @@ this_name_complex_list, this_value_complex_list = court_complex_list()
 # for now, it is just for Pune. Few things will change while iterating all districts
 pune_directory = directories_files.dist_dir(main_Directory, "pune")
 pune_summary = directories_files.district_summary(pune_directory, "pune")
-message_complex_number = (f':number of complex: {len(this_name_complex_list)}:\n')
+message_complex_number = f':number of complex: {len(this_name_complex_list)}:\n'
 append_file(pune_summary, message_complex_number)
 for index, value in enumerate(this_name_complex_list):
     message_name_complex = f':{index}  :  {value}\n'
     append_file(pune_summary, message_name_complex)
 catch_errors = directories_files.errors_file(pune_directory, 'pune')
 # 2.4.c loop over all complexes
-i = 0
+i = 16
 while i < len(this_name_complex_list):
     try:
-
         # 2.4.1.1 select court complex
         this_name_complex = single_court_complex(i,
                                                  this_value_complex_list,
@@ -380,10 +409,10 @@ while i < len(this_name_complex_list):
         # 2.4.1.2 select act.
         # If the acts are not available go to the next court complex
         # or if option for particular act is not present go to next court complex
-        logger.info(f"{this_name_complex}")
+        logger.info(f"{this_name_complex_list[i]}")
         if not select_act():
             logger.info(f'no act found {this_name_complex_list[i]}')
-            act_message = f':{this_name_complex}:Act Does Not Apply:\n'
+            act_message = f':{this_name_complex_list[i]}:Act Does Not Apply:\n'
             append_file(pune_summary, act_message)
             continue
         input_year("2020")
@@ -413,25 +442,44 @@ while i < len(this_name_complex_list):
             append_file(pune_summary, not_found)
             i += 1
             continue  # skip rest of the code and continue the for loop from start.
-        else:
-            number_records = record_found_summary()
-            record_found = f':{this_name_complex}:{number_records}:\n'
-            # 2.4.6 make new directory
-            complex_directory = directories_files.court_complex_dir(
-                main_Directory, this_name_complex)
-            complex_summary, order_summary = directories_files.complex_summary(
-                complex_directory=complex_directory,
-                                              name_of_the_complex=this_name_complex,
-                                              registration_number="some number")
-            complex_cases_list = case_identifier()
-            message_complex_summry = f':      total number of records: ' \
-                                     f'        {number_records}         :\n'
-            for index, each_case in enumerate(complex_cases_list):
-                message_complex_cases = f':{index}  :  {each_case}:\n'
-                append_file(complex_summary, message_complex_cases)
-            # 2.4.7 download all the records
-            view(complex_directory)
-            i += 1
+
+        #definding dictionary
+        base_dictionary = {'Case Type': "BLANK", 'Filing Number': "BLANK",
+                           'Filing Date': "BLANK", 'Registration Number': "BLANK",
+                           'Registration Date': "BLANK", 'CNR Number': "BLANK",
+                           'First Hearing Date': "BLANK", 'Decision Date': "BLANK",
+                           'Case Status': "BLANK", 'Nature of Disposal': "BLANK",
+                           'Court Number and Judge': "BLANK", ipc: "BLANK",
+                           poa: "BLANK", pcso: "BLANK", pcr: "BLANK", cpr: "BLANK",
+                           'Other': "BLANK", 'Police Station': "BLANK",
+                           'FIR Number': "BLANK", 'Year': "BLANK"}
+        fields = base_dictionary.keys()
+
+        number_records = record_found_summary()
+        record_found = f':{this_name_complex}:{number_records}:\n'
+        # 2.4.6 make new directory
+        complex_directory = directories_files.court_complex_dir(
+            main_Directory, this_name_complex)
+        complex_summary, order_summary = directories_files.complex_summary(
+            complex_directory=complex_directory,
+            name_of_the_complex=this_name_complex,
+            registration_number="some number")
+        complex_cases_list = case_identifier()
+        message_complex_summry = f':      total number of records: ' \
+                                 f'        {number_records}         :\n'
+        for index, each_case in enumerate(complex_cases_list):
+            message_complex_cases = f':{index}  :  {each_case}:\n'
+            append_file(complex_summary, message_complex_cases)
+        # create file with headers for writing detials of case.
+        case_details_file = directories_files.complex_record_details(
+            complex_directory, this_name_complex)
+        open_dictionary_with_headers(case_details_file, headers=fields)
+        # file with headers for taking details of only PoA cases
+        poa_case_details_file = directories_files.complex_records_poa(
+            complex_directory, this_name_complex)
+        open_dictionary_with_headers(poa_case_details_file, fields)
+        view(this_name_complex)
+        i += 1
 
     except TimeoutException:
         message_timeout = f':{this_name_complex_list[i]} TimeoutException Error:'
@@ -442,8 +490,8 @@ while i < len(this_name_complex_list):
         message_timeout = f':{this_name_complex_list[i]} TimeoutException Error:'
         append_file(catch_errors, message_timeout)
         logger.info(f'webdriver exception {this_name_complex_list[i]}\n'
-                    f'sleeping for 60 secs')
-        time.sleep(60)
+                    f'sleeping for 20 secs')
+        time.sleep(20)
         continue
 
 logger.info(f'all court complexes in pune completed')
