@@ -25,7 +25,7 @@ from file_append import append_file, append_dict_as_row, write_mode
 from case_details import ParseCase, History
 
 profile = webdriver.FirefoxProfile()
-orders_directory = r'/home/sangharshmanuski/EcourtsData/disposed_off/pune3/orders'
+orders_directory = r'/home/sangharshmanuski/Documents/ecourts_bail_disposed/orders'
 profile.set_preference("browser.download.folderList", 2)
 profile.set_preference("browser.download.dir", orders_directory)
 profile.set_preference("browser.download.manager.alertOnEXEOpen", False)
@@ -42,6 +42,9 @@ profile.set_preference("browser.download.manager.useWindow", False)
 profile.set_preference("services.sync.prefs.sync.browser.download.manager."
                        "showWhenStarting", False)
 profile.set_preference("pdfjs.disabled", True)
+profile.set_preference("network.proxy.type", 1)
+profile.set_preference("network.proxy.http","116.202.103.223")
+profile.set_preference("network.proxy.http_port", 21869)
 profile.update_preferences()
 
 driver = webdriver.Firefox(firefox_profile=profile)
@@ -49,7 +52,7 @@ driver = webdriver.Firefox(firefox_profile=profile)
 # constants
 URL = r'https://districts.ecourts.gov.in/pune'
 
-main_Directory = r'/home/sangharshmanuski/Documents/data_ecourts/new_pune/pune1'
+main_Directory = r'/home/sangharshmanuski/Documents/ecourts_bail_disposed/pune/0'
 summary_directory = os.path.join(main_Directory, 'summary')
 combo_identifier = '#sateist'
 wait = WebDriverWait(driver, 180)
@@ -87,7 +90,8 @@ def court_complex_list():
     return court_complex_names, court_complex_values
 
 
-def single_court_complex(complex_number, value_complex_list=None, name_complex_list=None):
+def single_court_complex(
+        complex_number, value_complex_list=None, name_complex_list=None):
     # returns single court complex name and value of the same
     complex_combo = Select(driver.find_element_by_css_selector('#court_complex_code'))
     value_complex = value_complex_list[complex_number]
@@ -260,8 +264,7 @@ def view(some_complex=None):
         By.CSS_SELECTOR, 'a.someclass')))
     list_all_view = driver.find_elements_by_css_selector('a.someclass')
     list_all_view_text = driver.find_elements_by_css_selector('.col-xs-2')
-    for click_here in list_all_view[1:1000:]:
-
+    for click_here in list_all_view:
         try:
             click_here.click()
             case_number_processing = list_all_view_text[
@@ -286,60 +289,64 @@ def view(some_complex=None):
         registration = str(registration).replace("/", "_")
         # create directory for history
         directory_history = directories_files.history_direcotry(complex_directory)
-
-
-        if check_the_act.act_check(driver):
-            poa_page = driver.page_source
-            poa_soup = BS(poa_page, 'lxml')
-            poa_case_details = ParseCase(poa_soup, base_dictionary)
-            append_dict_as_row(poa_case_details_file,
-                               poa_case_details.set_dictionary(),
-                               fields)
-            download_order(registration)
-            if driver.find_element_by_css_selector(".history_table").is_displayed():
-                history_file = os.path.join(directory_history,
-                                             f'history_{registration}.csv')
-                write_mode(history_file)
-                history_record = History(poa_soup, base_dictionary, history_file)
-                history_record.case_history()
+        try:
+            if check_the_act.act_check(driver):
+                poa_page = driver.page_source
+                poa_soup = BS(poa_page, 'lxml')
+                poa_case_details = ParseCase(poa_soup, base_dictionary)
+                append_dict_as_row(poa_case_details_file,
+                                   poa_case_details.set_dictionary(),
+                                   fields)
+                download_order(registration)
+                if driver.find_element_by_css_selector(
+                        ".history_table").is_displayed():
+                    history_file = os.path.join(directory_history,
+                                                 f'history_{registration}.csv')
+                    write_mode(history_file)
+                    history_record = History(poa_soup, base_dictionary, history_file)
+                    history_record.case_history()
+                    back = driver.find_element_by_css_selector(
+                        "#back_top > center:nth-child(1) > a:nth-child(1)")
+                    back.click()
+                    logger.info(f'order downloaded {registration}')
+                    time.sleep(2)
+                    continue
+                else:
+                    history_file = os.path.join(directory_history,
+                                                f'history_{registration}.csv')
+                    write_mode(history_file, "order downloaded {registration}. No history displayed")
                 back = driver.find_element_by_css_selector(
                     "#back_top > center:nth-child(1) > a:nth-child(1)")
                 back.click()
-                logger.info(f'order downloaded {registration}')
-                time.sleep(2)
-                continue
+
             else:
+                page = driver.page_source
+                base_soup = BS(page, 'lxml')
+                case_details_record = ParseCase(base_soup, base_dictionary)
+                append_dict_as_row(
+                    case_details_file, case_details_record.set_dictionary(),
+                    fields)
+                # a seperate file for recording history of case.
                 history_file = os.path.join(directory_history,
                                             f'history_{registration}.csv')
-                write_mode(history_file, "order downloaded {registration}. No history displayed")
-            back = driver.find_element_by_css_selector(
-                "#back_top > center:nth-child(1) > a:nth-child(1)")
+                if driver.find_element_by_css_selector(
+                        ".history_table").is_displayed():
+                    write_mode(history_file)
+                    history_record = History(base_soup,
+                                             base_dictionary, history_file)
+                    history_record.case_history()
+                    back = driver.find_element_by_id('back_top')
+                    back.click()
+                    logger.info(f'{this_name_complex} downloaded but no PoA')
+                    time.sleep(2)
+                    continue
+                else:
+                    back = driver.find_element_by_id("back_top")
+                    back.click()
+        except WebDriverException:
+            back = driver.find_element_by_id("back_top")
             back.click()
 
-        else:
-            page = driver.page_source
-            base_soup = BS(page, 'lxml')
-            case_details_record = ParseCase(base_soup, base_dictionary)
-            append_dict_as_row(
-                case_details_file, case_details_record.set_dictionary(), fields)
-            # a seperate file for recording history of case.
-            history_file = os.path.join(directory_history,
-                                        f'history_{registration}.csv')
-            if driver.find_element_by_css_selector(".history_table").is_displayed():
-                write_mode(history_file)
-                history_record = History(base_soup, base_dictionary, history_file)
-                history_record.case_history()
-                back = driver.find_element_by_css_selector(
-                    "#back_top > center:nth-child(1) > a:nth-child(1)")
-                back.click()
-                logger.info(f'{this_name_complex} downloaded but no PoA')
-                time.sleep(2)
-                continue
-            else:
-                write_mode(history_file, "No history displayed")
-                back = driver.find_element_by_css_selector(
-                    "#back_top > center:nth-child(1) > a:nth-child(1)")
-                back.click()
 
 def download_order(number="no_number"):
     time.sleep(3)
@@ -399,7 +406,7 @@ for index, value in enumerate(this_name_complex_list):
     append_file(pune_summary, message_name_complex)
 catch_errors = directories_files.errors_file(pune_directory, 'pune')
 # 2.4.c loop over all complexes
-i = 16
+i = 0
 while i < len(this_name_complex_list):
     try:
         # 2.4.1.1 select court complex
@@ -412,7 +419,8 @@ while i < len(this_name_complex_list):
         logger.info(f"{this_name_complex_list[i]}")
         if not select_act():
             logger.info(f'no act found {this_name_complex_list[i]}')
-            act_message = f':{this_name_complex_list[i]}:Act Does Not Apply:\n'
+            act_message = f':{this_name_complex_list[i]}' \
+                          f':Act Does Not Apply:\n'
             append_file(pune_summary, act_message)
             continue
         input_year("2020")
@@ -443,7 +451,7 @@ while i < len(this_name_complex_list):
             i += 1
             continue  # skip rest of the code and continue the for loop from start.
 
-        #definding dictionary
+        # definding dictionary
         base_dictionary = {'Case Type': "BLANK", 'Filing Number': "BLANK",
                            'Filing Date': "BLANK", 'Registration Number': "BLANK",
                            'Registration Date': "BLANK", 'CNR Number': "BLANK",
@@ -452,9 +460,9 @@ while i < len(this_name_complex_list):
                            'Court Number and Judge': "BLANK", ipc: "BLANK",
                            poa: "BLANK", pcso: "BLANK", pcr: "BLANK", cpr: "BLANK",
                            'Other': "BLANK", 'Police Station': "BLANK",
-                           'FIR Number': "BLANK", 'Year': "BLANK"}
+                           'FIR Number': "BLANK", 'Year': "BLANK", 'Petitioner & Adv.': "BLANK",
+                           'Respondent & Adv.': "BLANK"}
         fields = base_dictionary.keys()
-
         number_records = record_found_summary()
         record_found = f':{this_name_complex}:{number_records}:\n'
         # 2.4.6 make new directory

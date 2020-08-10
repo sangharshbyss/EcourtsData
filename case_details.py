@@ -61,62 +61,115 @@ class ParseCase:
             fir_dictioanry = {headers_fir[i]: fir_dictioanry_values[i]
                               for i in range(len(headers_fir))}
             return fir_dictioanry
+        else:
+            return False
 
 
+    def petitioner_details(self):
+        petitioner = self.soup.find_all(class_='Petitioner_Advocate_table')
+        if petitioner is not None:
+            list_text = []
+            for detail in petitioner:
+                for string in detail.stripped_strings:
+                    whole_text = unicodedata.normalize("NFKD", string)
+                    if ":" in str(whole_text):
+                        text = str(whole_text).replace(":", "")
+                        list_text.append(text)
+                    else:
+                        list_text.append(whole_text)
+            petitioner_dictionary = {'Petitioner & Adv.': list_text}
+            return petitioner_dictionary
+        else:
+            return False
+
+    def respondent_details(self):
+        respondent = self.soup.find_all(class_='Respondent_Advocate_table')
+        if respondent is not None:
+            list_text = []
+            for detail in respondent:
+                for string in detail.stripped_strings:
+                    whole_text = unicodedata.normalize("NFKD", string)
+                    if ":" in str(whole_text):
+                        text = str(whole_text).replace(":", "")
+                        list_text.append(text)
+                    else:
+                        list_text.append(whole_text)
+            respondent_dictionary = {'Respondent & Adv.': list_text}
+            return respondent_dictionary
+        else:
+            return False
 
 
     def act_table(self):
         act = self.soup.find_all(id="act_table")
-        df = pandas.read_html(str(act))
-        ipc = 'indian penal code'
-        poa = 'prevention of atrocities'
-        pcso = 'protection of children from sexual'
-        pcr = 'protection of civil rights'
-        cpr = 'code of criminal procedure'
+        if act is not None:
+            df = pandas.read_html(str(act))
+            ipc = 'indian penal code'
+            poa = 'prevention of atrocities'
+            pcso = 'protection of children from sexual'
+            pcr = 'protection of civil rights'
+            cpr = 'code of criminal procedure'
 
-        headers = [ipc, poa, pcso, pcr, cpr]
-        act_dictionary = {'indian penal code': "BLANK",
-                          'prevention of atrocities': "BLANK",
-                          'protection of children from sexual': "BLANK",
-                          'protection of civil rights': "BLANK",
-                          'code of criminal procedure': "BLANK", 'Other': "BLANK"}
+            headers = [ipc, poa, pcso, pcr, cpr]
+            act_dictionary = {'indian penal code': "BLANK",
+                              'prevention of atrocities': "BLANK",
+                              'protection of children from sexual': "BLANK",
+                              'protection of civil rights': "BLANK",
+                              'code of criminal procedure': "BLANK", 'Other': "BLANK"}
 
-        for row in df[0].itertuples(index=False):
-            for key in headers:
-                if key in str(row[0]).lower():
-                    if ":" in str((row[1])):
-                        text = str(row[1]).replace(":", "")
-                        act_dictionary[key] = text
+            for row in df[0].itertuples(index=False):
+                for key in headers:
+                    if key in str(row[0]).lower():
+                        if ":" in str((row[1])):
+                            text = str(row[1]).replace(":", "")
+                            act_dictionary[key] = text
+                        else:
+                            text = str(row[1])
+                            act_dictionary[key] = text
+                if not any(item in str(row[0]).lower() for item in headers):
+                    if ":" in str(row[0]):
+                        other = str(row[0]).replace(":", "")
+                        act_dictionary['Other'] = other
                     else:
-                        text = str(row[1])
-                        act_dictionary[key] = text
-            if not any(item in str(row[0]).lower() for item in headers):
-                if ":" in str(row[0]):
-                    other = str(row[0]).replace(":", "")
-                    act_dictionary['Other'] = other
-                else:
-                    act_dictionary['Other'] = (str(row[0]).lower())
-        return act_dictionary
+                        act_dictionary['Other'] = (str(row[0]).lower())
+            return act_dictionary
+        else:
+            return False
 
 
     def set_dictionary(self):
         case_details_dictioanry = self.case_details_table()
         case_status_dictioanry = self.case_status()
-        fir_dictioanry = self.fir_details()
+
         acts_dictionary = self.act_table()
+
         for key in self.dictionary:
             if key in case_details_dictioanry:
                 self.dictionary[key] = case_details_dictioanry[key]
         for key in self.dictionary:
             if key in case_status_dictioanry:
                 self.dictionary[key] = case_status_dictioanry[key]
-        for key in self.dictionary:
-            if key in fir_dictioanry:
-                self.dictionary[key] = fir_dictioanry[key]
-        for key in self.dictionary:
-            if key in acts_dictionary:
-                self.dictionary[key] = acts_dictionary[key]
+        if self.fir_details():
+            fir_dictioanry = self.fir_details()
+            for key in self.dictionary:
+                if key in fir_dictioanry:
+                    self.dictionary[key] = fir_dictioanry[key]
+        if self.petitioner_details():
+            petitioner_dictionary = self.petitioner_details()
+            for key in self.dictionary:
+                if key in petitioner_dictionary:
+                    self.dictionary[key] = str(petitioner_dictionary[key]).replace("[", "").replace("]", "")
+        if self.respondent_details():
+            respondent_dictionary = self.petitioner_details()
+            for key in self.dictionary:
+                if key in respondent_dictionary:
+                    self.dictionary[key] = str(respondent_dictionary[key]).replace("[", "").replace("]", "")
+        if self.act_table():
+            for key in self.dictionary:
+                if key in acts_dictionary:
+                    self.dictionary[key] = acts_dictionary[key]
         return self.dictionary
+
 
 class History(ParseCase):
     def __init__(self, soup, main_dictionary, file):
@@ -131,8 +184,7 @@ class History(ParseCase):
         history.to_csv(self.file, index=False)
         return history
 
-"""
-source = open('/home/sangharshmanuski/EcourtsData/disposed_off/pune3/Khed, Civil Court/case_info50.html')
+"""source = open('/home/sangharshmanuski/EcourtsData/disposed_off/pune3/Khed, Civil Court/case_info50.html')
 base_soup = BS(source, 'lxml')
 
 file = '/home/sangharshmanuski/EcourtsData/disposed_off/pune3/idarich.csv'
