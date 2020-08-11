@@ -7,7 +7,6 @@ class ParseCase:
         self.soup = soup
         self.dictionary = main_dictionary
 
-
     def case_details_table(self):
         case_details = self.soup.find_all(class_="case_details_table")
         list_case_details = []
@@ -42,63 +41,6 @@ class ParseCase:
         case_status_dictioanry = {headers[i]: dictioanry_values[i]
                                   for i in range(len(headers))}
         return case_status_dictioanry
-
-    def fir_details(self):
-        fir = self.soup.find_all(class_='FIR_details_table')
-        if fir is not None:
-            list_text = []
-            for detail in fir:
-                for string in detail.stripped_strings:
-                    whole_text = unicodedata.normalize("NFKD", string)
-                    if ":" in str(whole_text):
-                        text = str(whole_text).replace(":", "")
-                        list_text.append(text)
-                    else:
-                        list_text.append(whole_text)
-            list_fir = [i for i in list_text if i != ":"]
-            headers_fir = list_fir[0:5:2]
-            fir_dictioanry_values = list_fir[1:6:2]
-            fir_dictioanry = {headers_fir[i]: fir_dictioanry_values[i]
-                              for i in range(len(headers_fir))}
-            return fir_dictioanry
-        else:
-            return False
-
-
-    def petitioner_details(self):
-        petitioner = self.soup.find_all(class_='Petitioner_Advocate_table')
-        if petitioner is not None:
-            list_text = []
-            for detail in petitioner:
-                for string in detail.stripped_strings:
-                    whole_text = unicodedata.normalize("NFKD", string)
-                    if ":" in str(whole_text):
-                        text = str(whole_text).replace(":", "")
-                        list_text.append(text)
-                    else:
-                        list_text.append(whole_text)
-            petitioner_dictionary = {'Petitioner & Adv.': list_text}
-            return petitioner_dictionary
-        else:
-            return False
-
-    def respondent_details(self):
-        respondent = self.soup.find_all(class_='Respondent_Advocate_table')
-        if respondent is not None:
-            list_text = []
-            for detail in respondent:
-                for string in detail.stripped_strings:
-                    whole_text = unicodedata.normalize("NFKD", string)
-                    if ":" in str(whole_text):
-                        text = str(whole_text).replace(":", "")
-                        list_text.append(text)
-                    else:
-                        list_text.append(whole_text)
-            respondent_dictionary = {'Respondent & Adv.': list_text}
-            return respondent_dictionary
-        else:
-            return False
-
 
     def act_table(self):
         act = self.soup.find_all(id="act_table")
@@ -136,7 +78,6 @@ class ParseCase:
         else:
             return False
 
-
     def set_dictionary(self):
         case_details_dictioanry = self.case_details_table()
         case_status_dictioanry = self.case_status()
@@ -149,21 +90,34 @@ class ParseCase:
         for key in self.dictionary:
             if key in case_status_dictioanry:
                 self.dictionary[key] = case_status_dictioanry[key]
-        if self.fir_details():
-            fir_dictioanry = self.fir_details()
-            for key in self.dictionary:
-                if key in fir_dictioanry:
-                    self.dictionary[key] = fir_dictioanry[key]
-        if self.petitioner_details():
-            petitioner_dictionary = self.petitioner_details()
-            for key in self.dictionary:
-                if key in petitioner_dictionary:
-                    self.dictionary[key] = str(petitioner_dictionary[key]).replace("[", "").replace("]", "")
-        if self.respondent_details():
-            respondent_dictionary = self.petitioner_details()
-            for key in self.dictionary:
-                if key in respondent_dictionary:
-                    self.dictionary[key] = str(respondent_dictionary[key]).replace("[", "").replace("]", "")
+
+        fir = self.soup.find_all(class_='FIR_details_table')
+        if not fir:
+            print("no fir details given")
+        else:
+            fir_dictionary = fir_details(fir)
+            for key in fir_dictionary:
+                if key in self.dictionary:
+                    self.dictionary[key] = fir_dictionary[key]
+                else:
+                    print("some issue")
+
+        petitioner = self.soup.find_all(class_='Petitioner_Advocate_table')
+        if not petitioner:
+            print("no Petitioner and advocate details given")
+        else:
+            petitioner_dictionary = petitioner_details(petitioner)
+            self.dictionary['Petitioner & Adv.'] = str(
+                petitioner_dictionary['Petitioner & Adv.']).replace("[", "").replace("]", "")
+
+        respondent = self.soup.find_all(class_='Respondent_Advocate_table')
+        if not respondent:
+            print("no Respondent and advocate details given")
+        else:
+            respondent_dictionary = respondent_details(respondent)
+            self.dictionary['Respondent & Adv.'] = str(
+                respondent_dictionary['Respondent & Adv.']).replace("[", "").replace("]", "")
+
         if self.act_table():
             for key in self.dictionary:
                 if key in acts_dictionary:
@@ -183,6 +137,72 @@ class History(ParseCase):
         history = df[0]
         history.to_csv(self.file, index=False)
         return history
+
+
+def fir_details(fir):
+    list_text = []
+    for detail in fir:
+        for string in detail.stripped_strings:
+            list_text.append(string)
+    if not list_text:
+        print("no FIR details")
+        return False
+    else:
+        headers_fir = ['Police Station', 'FIR Number', 'Year']
+        fir_dictioanry_values = list_text[2::2]
+        # remove ":" from text
+        details = []
+        for one in fir_dictioanry_values:
+            if ":" in str(one):
+                values = str(one).replace(":", "")
+                details.append(values)
+            else:
+                details.append(one)
+        fir_dictioanry = {headers_fir[i]: details[i]
+                          for i in range(len(headers_fir))}
+        return fir_dictioanry
+
+
+def petitioner_details(petitioner):
+    if petitioner is not None:
+        list_text = []
+        for detail in petitioner:
+            for string in detail.stripped_strings:
+                whole_text = unicodedata.normalize("NFKD", string)
+                if ":" in str(whole_text):
+                    text = str(whole_text).replace(":", "")
+                    list_text.append(text)
+                else:
+                    list_text.append(whole_text)
+        if list_text is None:
+            print("No petitioner_detials")
+            return False
+        else:
+            petitioner_dictionary = {'Petitioner & Adv.': list_text}
+        return petitioner_dictionary
+    else:
+        return False
+
+
+def respondent_details(respondent):
+    if respondent is not None:
+        list_text = []
+        for detail in respondent:
+            for string in detail.stripped_strings:
+                whole_text = unicodedata.normalize("NFKD", string)
+                if ":" in str(whole_text):
+                    text = str(whole_text).replace(":", "")
+                    list_text.append(text)
+                else:
+                    list_text.append(whole_text)
+        if not list_text:
+            print("no respondent table")
+        else:
+            respondent_dictionary = {'Respondent & Adv.': list_text}
+            return respondent_dictionary
+    else:
+        return False
+
 
 """source = open('/home/sangharshmanuski/EcourtsData/disposed_off/pune3/Khed, Civil Court/case_info50.html')
 base_soup = BS(source, 'lxml')

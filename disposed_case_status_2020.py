@@ -364,7 +364,7 @@ def download_order(number="no_number"):
             orders[order].click()
             time.sleep(3)
             # driver.switch_to.window(driver.window_handles[-1])
-            message_orders_downloaded = f':downloaded {number}_2020_{order}.txt'
+            message_orders_downloaded = f':downloaded {number}_2020_{order}\n'
             append_file(order_summary, message_orders_downloaded)
             logger.info(f"downloading...{order}")
         logger.info(f'number of orders downloaded: {len(orders)}')
@@ -372,7 +372,7 @@ def download_order(number="no_number"):
         return
     else:
         no_order_table = f'no order table \n ' \
-                         f'{number}_2020'
+                         f'{number}_2020\n'
         append_file(order_summary, no_order_table)
 
         logger.info('entire order table was missing and no blinking text')
