@@ -3,13 +3,6 @@ import os
 from file_append import write_mode
 
 
-def dist_dir(main, some_district_name=None):
-    district_directory = os.path.join(
-        main, some_district_name)  # create new
-    if not os.path.exists(district_directory):  # if not directory exists, create one
-        os.mkdir(district_directory)
-    return district_directory
-
 
 def court_complex_dir(main, name_complex):
     # makes separate directory particular court complex

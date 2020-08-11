@@ -3,26 +3,28 @@ as there was mistake in acts sections.
 re-downloading records except downloading orders"""
 
 from bs4 import BeautifulSoup as BS
-import csv
-import base64
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
-import time
-import os
 from PIL import Image
 from io import BytesIO
-import cv2
 from pytesseract import pytesseract
 from selenium.common.exceptions import NoSuchElementException, \
     TimeoutException, WebDriverException
-import check_the_act
-from ecourts_logging import logger
-import directories_files
+import csv
+import base64
+import time
+import os
+import cv2
+import sys
+
 from file_append import append_file, append_dict_as_row, write_mode
 from case_details import ParseCase, History
+from ecourts_logging import logger
+import check_the_act
+import directories_files
 
 profile = webdriver.FirefoxProfile()
 orders_directory = r'/home/sangharshmanuski/Documents/ecourts_bail_disposed/orders'
@@ -50,9 +52,16 @@ profile.update_preferences()
 driver = webdriver.Firefox(firefox_profile=profile)
 
 # constants
-URL = r'https://districts.ecourts.gov.in/pune'
+district_name_here = sys.argv[1]
+URL = 'https://districts.ecourts.gov.in/' + district_name_here
 
-main_Directory = r'/home/sangharshmanuski/Documents/ecourts_bail_disposed/pune/0'
+main_Directory_name = sys.argv[2]
+
+base_Directory = os.path.join(
+    '/home/sangharshmanuski/Documents/ecourts_bail_disposed/',
+    main_Directory_name)
+main_Directory_name_sub = sys.argv[3]
+main_Directory = os.path.join(base_Directory, main_Directory_name_sub)
 summary_directory = os.path.join(main_Directory, 'summary')
 combo_identifier = '#sateist'
 wait = WebDriverWait(driver, 180)
@@ -264,29 +273,29 @@ def view(some_complex=None):
         By.CSS_SELECTOR, 'a.someclass')))
     list_all_view = driver.find_elements_by_css_selector('a.someclass')
     list_all_view_text = driver.find_elements_by_css_selector('.col-xs-2')
-    for click_here in list_all_view:
+    start_lenth = sys.argv[4]
+    end_lenth = sys.argv[5] if int(sys.argv[5]) >= int("3") else len(list_all_view)
+    for click_here in list_all_view[int(start_lenth):int(end_lenth)]:
         try:
             click_here.click()
-            case_number_processing = list_all_view_text[
-                list_all_view.index(click_here)].text
-            logger.info(case_number_processing)
+
+
         except (WebDriverException,
                 TimeoutException,
                 NoSuchElementException):
-            failed_case = click_here.text
-            message_fail = f'{failed_case} exception'
-            append_file(catch_errors, message_fail)
-            continue
+            logger.info(f"something went wrong")
+            return
         remaining = len(list_all_view) - list_all_view.index(click_here)
         logger.info(f"{remaining}")
-        message_processing = f'{case_number_processing}'
-        append_file(complex_summary, message_processing)
-        logger.info(message_processing)
+
         wait.until(EC.presence_of_element_located((By.ID, 'back_top')))
         time.sleep(2)
         registration = driver.find_element_by_xpath(
             '/html/body/form/div[6]/div[2]/div[1]/span[4]/label').text
         registration = str(registration).replace("/", "_")
+        message_processing = f'{registration}'
+        append_file(complex_summary, message_processing)
+        logger.info(message_processing)
         # create directory for history
         directory_history = directories_files.history_direcotry(complex_directory)
         try:
@@ -397,16 +406,17 @@ driver.switch_to.window(newWindow)
 # 2.4.b new object from Formfilling(districtCourt)
 this_name_complex_list, this_value_complex_list = court_complex_list()
 # for now, it is just for Pune. Few things will change while iterating all districts
-pune_directory = directories_files.dist_dir(main_Directory, "pune")
-pune_summary = directories_files.district_summary(pune_directory, "pune")
+
+pune_summary = directories_files.district_summary(main_Directory, "pune")
 message_complex_number = f':number of complex: {len(this_name_complex_list)}:\n'
 append_file(pune_summary, message_complex_number)
 for index, value in enumerate(this_name_complex_list):
     message_name_complex = f':{index}  :  {value}\n'
     append_file(pune_summary, message_name_complex)
-catch_errors = directories_files.errors_file(pune_directory, 'pune')
+catch_errors = directories_files.errors_file(main_Directory, 'pune')
 # 2.4.c loop over all complexes
-i = 0
+start_number = sys.argv[6] if len(sys.argv) >= 7 else "0"
+i = int(start_number)
 while i < len(this_name_complex_list):
     try:
         # 2.4.1.1 select court complex
