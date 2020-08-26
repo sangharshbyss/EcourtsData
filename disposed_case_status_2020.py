@@ -285,7 +285,8 @@ def view(some_complex=None):
                 NoSuchElementException):
             logger.info(f"something went wrong")
             return
-        remaining = len(list_all_view) - list_all_view.index(click_here)
+        remaining = f"@{list_all_view.index(click_here)}\n" \
+                    f"so {len(list_all_view) - list_all_view.index(click_here)} remaining"
         logger.info(f"{remaining}")
 
         wait.until(EC.presence_of_element_located((By.ID, 'back_top')))
@@ -293,7 +294,7 @@ def view(some_complex=None):
         registration = driver.find_element_by_xpath(
             '/html/body/form/div[6]/div[2]/div[1]/span[4]/label').text
         registration = str(registration).replace("/", "_")
-        message_processing = f'{registration}'
+        message_processing = f'{str(registration).replace(":", "")}\n{remaining}\n\n'
         append_file(complex_summary, message_processing)
         logger.info(message_processing)
         # create directory for history
